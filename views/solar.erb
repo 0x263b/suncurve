@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<title>Sun Curve</title>
+<style>
+	html, body {
+		padding: 0;
+		margin: 0;
+		height: 100%;
+		overflow: hidden;
+	}
+	
+	body {
+		font: normal 16px "San Francisco Display", "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif;
+		font-weight: 300;
+		background-color: #000;
+		color: #fff;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+	
+	#wrapper {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 100%;
+	}
+	
+	#display {
+		position: relative;
+		line-height: 0;
+	}
+
+	#location, #current-time {
+		position: absolute;
+		z-index: 5;
+		top: 1em;
+		font-size: 2em;
+		line-height: 1.8em;
+	}
+
+	#location {
+		left: 1em;
+	}
+
+	#current-time {
+		right: 1em;
+	}
+
+	#position-time, #difference, #phase {
+		position: absolute;
+		z-index: 5;
+		bottom: 1em;
+		font-size: 1.8em;	
+	}
+
+	#position-time {
+		right: 1em;
+	}
+
+	#difference {
+		left: 1em;
+	}
+
+	#phase {
+		left: 50%;
+		width: 50%;
+		margin-left: -25%;
+		text-align: center;
+		text-transform: uppercase;
+	}
+
+	.button {
+		position: absolute;
+		z-index: 4;
+		width: 13px;
+		height: 13px;
+		cursor: pointer;
+		display: block;
+		border-radius: 6.5px;
+
+	}
+	.button:hover {
+		background-color: #DDD;
+		box-shadow: 0 0 5px white;
+	}
+
+	#paths {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 2;
+	}
+</style>
+</head>
+<body id="body">
+
+<div id="wrapper">
+	<div id="current-time"></div>
+	<div id="location"><%= @output[:city] %></div>
+	<div id="position-time"></div>
+	<div id="phase"></div>
+	<div id="difference"></div>
+
+	<div id="display">
+		<canvas id="glow"></canvas>
+		<canvas id="paths"></canvas>
+
+		<span class="button" name="Dawn" id="dawn"></span>
+		<span class="button" name="Sunrise" id="sunrise"></span>
+		<span class="button" name="Solar noon" id="noon"></span>
+		<span class="button" name="Sunset" id="sunset"></span>
+		<span class="button" name="Dusk" id="dusk"></span>
+	</div>
+</div>
+
+<script type="text/javascript" src="/js/suncalc.js"></script>
+<script>
+"use strict";
+
+var lat = <%= @output[:lat] %>, lng = <%= @output[:lon] %>, now, times, 
+	nadir_position, dawn_position, sunrise_position, noon_position, current_position, 
+	dawn, sunrise, current,
+	amplitude, vert_shift,
+	points = {}, drawn = {},
+	chrome;
+
+
+var glow = document.getElementById("glow");
+var glow_context = glow.getContext('2d');
+
+var paths = document.getElementById("paths");
+var path_context = paths.getContext('2d');
+
+var ratio, box, font, height, width, horizon, noon;
+
+function resize_canvas(e) {
+	ratio = window.devicePixelRatio;
+	box = window.innerWidth > window.innerHeight ? window.innerHeight : window.innerWidth;
+	font = box*0.025 > 12 ? Math.floor(box*0.025) + "px" : "12px";
+	document.getElementById("body").style.fontSize = font;
+
+	glow.width = window.innerWidth * ratio;
+	glow.height = window.innerHeight * ratio;
+	glow.style.width =  window.innerWidth+"px";
+	glow.style.height = window.innerHeight+"px";
+	
+	glow_context.scale(ratio, ratio);
+
+	paths.width = window.innerWidth * ratio;
+	paths.height = window.innerHeight * ratio;
+	paths.style.width =  window.innerWidth+"px";
+	paths.style.height = window.innerHeight+"px";
+	
+	path_context.scale(ratio, ratio);
+
+	width = window.innerWidth;
+	height = window.innerHeight;
+
+	horizon = height/2;
+	noon = width/2;
+
+	dawn = horizon - (dawn_position.altitude * (box/4));
+	sunrise = horizon - (sunrise_position.altitude * (box/4));
+	current = horizon - (current_position.altitude * (box/4));
+
+	amplitude = (noon_position.altitude - nadir_position.altitude) * (box/8);
+	vert_shift = horizon + (amplitude) - (noon_position.altitude * (box/4));
+
+	calculateDots();
+}
+
+var isChromium = window.chrome,
+	vendorName = window.navigator.vendor,
+	isOpera = window.navigator.userAgent.indexOf("OPR") > -1;
+if(isChromium !== null && isChromium !== undefined && vendorName === "Google Inc." && isOpera == false) {
+	chrome = true;
+}
+
+function startTime() {
+	var today = new Date();
+	var h = checkTime(today.getHours());
+	var m = checkTime(today.getMinutes());
+	document.getElementById("current-time").innerHTML = h+":"+m;
+	var t = setTimeout(function(){startTime()},1000);
+}
+
+function checkTime(i) {
+	if (i<10) {i = "0" + i};  // add zero in front of numbers < 10
+	return i;
+}
+
+function gradient(start, end, opacity) {
+	var arr = [0, 0, 0];
+	var step = ((points.current.y / horizon) - 0.92) * 6.75;
+
+	function calc(a, b){
+		return Math.round((a - b) * step) + b;
+	}
+
+	if (points.current.y < horizon * 0.92) {
+		arr = start;
+	} else if (points.current.y > horizon * 1.07) {
+		arr = end;
+	} else {
+		arr[0] = calc(end[0], start[0]);
+		arr[1] = calc(end[1], start[1]);
+		arr[2] = calc(end[2], start[2]);
+	}
+	return "rgba(" + arr[0] + "," + arr[1] + "," + arr[2] + "," + opacity + ")";	
+}
+
+function amp(x){
+	return amplitude * Math.cos(x/(width/6)) - vert_shift;
+}
+
+function uamp(x){
+	var i = Math.acos((-x + vert_shift)/amplitude);
+	if (isNaN(i)) {
+		return 0;
+	} else if (i.toFixed(4) === 3.141) {
+		return 0;
+	} else {
+		return i * (width/6);	
+	}
+}
+
+function init() {
+	window.addEventListener('resize', resize_canvas, false);
+
+	now = (new Date).getTime();
+	times = SunCalc.getTimes(now, lat, lng);    
+
+	if (times.night.getTime() === NaN) {
+		nadir_position = SunCalc.getPosition(now - (1000*60*60*12), lat, lng);
+	} else {
+		nadir_position = SunCalc.getPosition(times.nadir, lat, lng);
+	}
+
+	dawn_position    = SunCalc.getPosition(times.nauticalDawn, lat, lng);
+	sunrise_position = SunCalc.getPosition(times.sunrise, lat, lng);
+	noon_position    = SunCalc.getPosition(times.solarNoon, lat, lng);
+	current_position = SunCalc.getPosition(now, lat, lng);
+
+	document.getElementById("dawn").dataset.time    = times.nauticalDawn;
+	document.getElementById("sunrise").dataset.time = times.sunrise;
+	document.getElementById("noon").dataset.time    = times.solarNoon;
+	document.getElementById("sunset").dataset.time  = times.sunset;
+	document.getElementById("dusk").dataset.time    = times.nauticalDusk;
+
+	resize_canvas();
+}
+
+function calculateDots() {
+	points.dawn    = {x: noon - uamp(dawn), y: dawn};
+	points.sunrise = {x: noon - uamp(horizon), y: horizon};
+	points.noon    = {x: noon, y: -amp(0) };
+	points.sunset  = {x: noon + uamp(horizon), y: horizon};
+	points.dusk    = {x: noon + uamp(dawn), y: dawn};
+
+	calculateCurrent();
+}
+
+function calculateCurrent() {
+	now = (new Date).getTime();
+	current_position = SunCalc.getPosition(now, lat, lng);
+	current = horizon - (current_position.altitude * (box/4));
+
+	var x = uamp(current),
+		y = current;
+	if (x === 0 && now > times.sunrise && now < times.sunset) {
+		points.current = {x: noon, y: y};
+	} else if (x === 0) {
+		points.current = {x: -20, y: y};
+	} else if (now < times.solarNoon) {
+		points.current = {x: -x + noon, y: y};
+	} else {
+		points.current = {x:  x + noon, y: y};
+	}
+
+	drawShadow();
+}
+
+function drawShadow() {
+	var opacity;
+	glow_context.fillStyle = "black";
+	glow_context.fillRect(0, 0, width, height);
+
+	chrome === true ? opacity = 0.5 : opacity = 1;
+
+	// Sun glow
+	glow_context.beginPath();
+	chrome === true ? glow_context.arc(0, 0, box*0.175, 0, 2 * Math.PI) : glow_context.arc(0, 0, box*0.125, 0, 2 * Math.PI);
+	glow_context.shadowColor = gradient([ 58, 215, 255], [102, 102, 255], opacity);
+	glow_context.shadowOffsetX = points.current.x * ratio;
+	glow_context.shadowOffsetY = points.current.y * ratio;
+	chrome === true ? glow_context.shadowBlur = (box*0.25) * ratio : glow_context.shadowBlur = (box*0.20) * ratio;
+
+	glow_context.fillStyle = "black";
+	glow_context.fill();
+
+	// Ground reflection
+	var h = horizon + (box* 0.0625);
+	glow_context.beginPath();
+	glow_context.moveTo(0, h);
+	glow_context.bezierCurveTo(box*0.125,h, box*0.125,horizon, box*0.25,horizon);
+	glow_context.bezierCurveTo(box*0.375,horizon, box*0.375,h, box*0.5,h);
+	glow_context.closePath();
+	if (now > noon) {
+		glow_context.shadowColor = gradient([254, 254, 103], [165, 118, 255], opacity);
+	} else {
+		glow_context.shadowColor = gradient([255, 128, 0], [255, 102, 102], opacity);		
+	}
+	glow_context.shadowOffsetX = (points.current.x - box*0.25) * ratio;
+	glow_context.shadowOffsetY = (Math.abs(points.current.y - horizon) - (box*0.04)) * ratio;
+	glow_context.shadowBlur = (box*0.05) * ratio;
+	glow_context.fill();
+
+	// Sun 
+	glow_context.beginPath();
+	glow_context.arc(points.current.x, points.current.y, 6, 0, 2*Math.PI);
+	glow_context.shadowColor = "rgba(0,0,0,0)";
+	glow_context.fillStyle = "rgba(255,255,255,1)";
+	glow_context.fill();
+
+	drawHorizon();
+}
+
+function drawHorizon() {
+	path_context.clearRect(0, 0, width, height);
+	glow_context.fillStyle = "black";
+	glow_context.shadowBlur = 0;
+	glow_context.fillRect(0, horizon, width, height);
+
+	path_context.beginPath();
+	path_context.moveTo(0,horizon);
+	path_context.lineTo(width, horizon);
+	
+	path_context.strokeStyle = "rgba(255,255,255,0.5)";
+	path_context.lineWidth = 1;
+	path_context.stroke();
+	
+	drawPath();
+}
+
+function drawPath() {
+	var x, y;
+	
+	path_context.beginPath();
+	path_context.strokeStyle = "rgba(255,255,255,0.5)";
+	path_context.lineWidth = 1.5;
+	for (var i = -noon; i <= noon; i++) {
+		x = noon + i; 
+		y = -amp(i);
+		if (i == -noon) {
+			path_context.moveTo(x, y);
+		}
+		else {
+			path_context.lineTo(x, y);
+		}
+	}
+	path_context.stroke();
+
+	drawDots();
+}
+
+function drawDots() {
+	drawn = {};
+	for (var point in points) {
+		drawDot(points[point].x, points[point].y, point);
+	}
+}
+
+function drawDot(x, y, phase) {
+	if (phase === "current") {
+		path_context.beginPath();
+		path_context.arc(x, y, 6.5, 0, 2*Math.PI);
+		path_context.globalCompositeOperation = "destination-out";
+		path_context.fillStyle = "white";
+		path_context.fill();
+		path_context.globalCompositeOperation = "source-over";
+		path_context.lineWidth = 2;
+		path_context.strokeStyle = "rgba(255,255,255,0.9)";
+		path_context.stroke();
+	} else {
+		path_context.beginPath();
+		path_context.globalCompositeOperation = "xor";
+		path_context.arc(x, y, 6, 0, 2*Math.PI);
+		path_context.fillStyle = "rgba(255,255,255,0.5)";
+		path_context.fill();
+		path_context.globalCompositeOperation = "source-over";
+
+		var button = document.getElementById(phase);
+		button.style.top = y-6.5 + "px";
+		button.style.left = x-6.5 + "px";
+	}
+}
+
+startTime();
+init();
+
+setInterval(calculateCurrent, 60000);
+
+var buttons = document.getElementsByClassName("button");
+
+String.prototype.toHHMMSS = function () {
+    var sec_num = parseInt(this, 10);
+    var hours   = Math.floor(sec_num / 3600);
+    var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
+    var seconds = sec_num - (hours * 3600) - (minutes * 60);
+
+    if (hours   < 10) {hours   = "0"+hours;}
+    if (minutes < 10) {minutes = "0"+minutes;}
+    if (seconds < 10) {seconds = "0"+seconds;}
+    var time    = hours+':'+minutes;
+    return time;
+}
+
+function hover_times() {
+	var attribute = this.getAttribute("data-time");
+	var date = new Date(attribute);
+	var time = checkTime(date.getHours()) + ":" + checkTime(date.getMinutes());
+	var diff = Math.abs((date - now)/(1000)).toString();
+		diff = diff.toHHMMSS();
+	now < date ? diff = "+" + diff : diff = "–" + diff;
+
+	document.getElementById("position-time").innerHTML = time;
+	document.getElementById("phase").innerHTML = this.getAttribute("name");
+	document.getElementById("difference").innerHTML = diff;
+};
+
+function clear_times() {
+	document.getElementById("position-time").innerHTML = "";
+	document.getElementById("phase").innerHTML = "";
+	document.getElementById("difference").innerHTML = "";
+}
+
+for(var i = 0; i < buttons.length; i++){
+	buttons[i].addEventListener("mouseover", hover_times, false);
+	buttons[i].addEventListener("mouseout", clear_times, false);
+}
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Analemma</title>
+	<style>
+		body {
+			background-color: #002;
+			font-family: sans-serif;
+			font-size: 12px;
+			color: #fff;
+		}
+		div {
+			display: inline-block;
+			border: 1px solid #333;
+			padding: 10px;
+			margin: 5px;
+		}
+
+		hr {
+			border: none;
+			background-color: #55a;
+			height: 1px;
+		}
+	</style>
+</head>
+<body>
+
+	<div>
+		<img src="/analemma.svg?latitude=<%= @output[:lat] %>&longitude=<%= @output[:lon] %>&timezone=<%= @output[:timezone] %>" alt="" />
+		<br><%= @output[:city] %>
+	</div>
+
+	<hr>
+
+	<div>
+		<img src="/analemma.svg?latitude=90.0000&longitude=0.000&timezone=America/Anchorage" alt="" />
+		<br>North Pole
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=71.295556&longitude=-156.766389&timezone=America/Anchorage" alt="" />
+		<br>Barrow, AK
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=33.8272&longitude=-111.9236&timezone=America/Phoenix" alt="" />
+		<br>Carefree, AZ
+	</div>
+
+	<div>
+		<img src="/analemma.svg" alt="" />
+		<br>New York, NY
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=38.9047&longitude=-77.0164" alt="" />
+		<br>Washington, DC
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=51.5072&longitude=-0.1275&timezone=Europe/London" alt="" />
+		<br>London, UK
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=40.4000&longitude=-3.7167&timezone=Europe/Madrid" alt="" />
+		<br>Madrid, Spain
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=23.6100&longitude=58.5400&timezone=Asia/Dubai" alt="" />
+		<br>Muscat, Oman
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=39.466667&longitude=75.983333&timezone=Asia/Urumqi" alt="" />
+		<br>Kashgar, Xinjiang 
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=40.116667&longitude=124.383333&timezone=Asia/Shanghai" alt="" />
+		<br>Dandong, Liaoning
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=-0.2333&longitude=-78.5167&timezone=America/Guayaquil" alt="" />
+		<br>Quito, Ecuador
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=3.7500&longitude=8.7833&timezone=Africa/Malabo" alt="" />
+		<br>Malabo, Equatorial Guinea
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=1.3000&longitude=103.8000&timezone=Asia/Singapore" alt="" />
+		<br>Singapore
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=-34.9290&longitude=138.6010&timezone=Australia/Adelaide" alt="" />
+		<br>Adelaide, SA
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=-33.8650&longitude=151.2094&timezone=Australia/Sydney" alt="" />
+		<br>Sydney, NSW
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=-46.4131&longitude=168.3475&timezone=Pacific/Auckland" alt="" />
+		<br>Invercargill, NZ
+	</div>
+
+	<div>
+		<img src="/analemma.svg?latitude=-90.000&longitude=0.000&timezone=Pacific/Auckland" alt="" />
+		<br>South Pole
+	</div>
+	
+
+</body>
+</html>

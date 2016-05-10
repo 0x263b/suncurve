@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg 
+	width="<%= @width * 3 %>px" 
+	height="<%= @height * 3 %>px" 
+	viewBox="0 0 <%= @width * 3 %> <%= @height * 3 %>" 
+	version="1.1" 
+	xmlns="http://www.w3.org/2000/svg" 
+	xmlns:xlink="http://www.w3.org/1999/xlink"
+	xmlns:analemma="https://analemma.herokuapp.com/analemma">
+	<rect x="0" y="0" width="<%= @width * 3 %>" height="<%= @height * 3 %>" fill="#002"/>
+<% @output.each do |day| %>
+	<circle 
+		id="week-<%= day[:index] %>"
+		analemma:date="<%= day[:date] %>"
+		cx="<%= (5 + day[:azimuth]) * 3 %>" 
+		cy="<%= (5 + day[:altitude]) * 3 %>" 
+		r="2" 
+		fill="<%= hsl_to_hex((day[:index]/52.0), 1.0, 0.7)%>">
+	</circle>
+<% end %>
+</svg>
