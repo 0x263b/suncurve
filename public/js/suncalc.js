@@ -28,7 +28,7 @@ var dayMs = 1000 * 60 * 60 * 24,
 
 function toJulian(date) { return date.valueOf() / dayMs - 0.5 + J1970; }
 function fromJulian(j)  { return new Date((j + 0.5 - J1970) * dayMs); }
-function toDays(date)   { return toJulian(date) - J2000; }
+function todays(date)   { return toJulian(date) - J2000; }
 
 
 // general calculations for position
@@ -77,7 +77,7 @@ SunCalc.getPosition = function (date, lat, lng) {
 
     var lw  = rad * -lng,
         phi = rad * lat,
-        d   = toDays(date),
+        d   = todays(date),
 
         c  = sunCoords(d),
         H  = siderealTime(d, lw) - c.ra;
@@ -134,7 +134,7 @@ SunCalc.getTimes = function (date, lat, lng) {
     var lw = rad * -lng,
         phi = rad * lat,
 
-        d = toDays(date),
+        d = todays(date),
         n = julianCycle(d, lw),
         ds = approxTransit(0, lw, n),
 
@@ -189,7 +189,7 @@ SunCalc.getMoonPosition = function (date, lat, lng) {
 
     var lw  = rad * -lng,
         phi = rad * lat,
-        d   = toDays(date),
+        d   = todays(date),
 
         c = moonCoords(d),
         H = siderealTime(d, lw) - c.ra,
@@ -212,7 +212,7 @@ SunCalc.getMoonPosition = function (date, lat, lng) {
 
 SunCalc.getMoonIllumination = function (date) {
 
-    var d = toDays(date),
+    var d = todays(date),
         s = sunCoords(d),
         m = moonCoords(d),
 
